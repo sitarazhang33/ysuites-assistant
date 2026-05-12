@@ -359,14 +359,13 @@ table{width:100%;border-collapse:collapse;}
 // 🔄 自动从GitHub Pages的 data/availability.json 拉取最新房态
 // ═══════════════════════════════════════════════════════════
 
-function formatAvail(count, isSet) {
+function formatAvail(count, isTwoBR) {
   if (count <= 0) return {text: 'sold out', style: 'r'};
-  if (isSet) {
-    if (count === 1) return {text: '1 set', style: 'o'};
-    return {text: count + ' sets', style: count <= 3 ? 'o' : 'g'};
-  }
+  // 注意：所有房型（包括2BR）都用 "rooms" 表达。
+  // 2BR 的剩余数实际是可用床位数（同房间号 .1/.2 各算一张床），
+  // 暂未区分整套(set) vs 单床位(bed)，Sitara手动调整文字
   if (count === 1) return {text: '1 room', style: 'o'};
-  return {text: count + ' rooms', style: count <= 5 ? 'o' : 'g'};
+  return {text: count + ' rooms', style: count <= (isTwoBR ? 3 : 5) ? 'o' : 'g'};
 }
 
 const CATEGORY_TO_ROOM_IDX = {
@@ -385,14 +384,14 @@ async function loadLatestAvailability() {
     const julyAvail = data.availability[julyKey];
 
     for (const [catCode, roomIdx] of Object.entries(CATEGORY_TO_ROOM_IDX)) {
-      const isSet = catCode.startsWith('2BR');
+      const isTwoBR = catCode.startsWith('2BR');
       if (earlyAvail && earlyAvail[catCode] !== undefined) {
-        const f = formatAvail(earlyAvail[catCode], isSet);
+        const f = formatAvail(earlyAvail[catCode], isTwoBR);
         ROOMS[roomIdx].ae_text = f.text;
         ROOMS[roomIdx].ae_style = f.style;
       }
       if (julyAvail && julyAvail[catCode] !== undefined) {
-        const f = formatAvail(julyAvail[catCode], isSet);
+        const f = formatAvail(julyAvail[catCode], isTwoBR);
         ROOMS[roomIdx].aj_text = f.text;
         ROOMS[roomIdx].aj_style = f.style;
       }
