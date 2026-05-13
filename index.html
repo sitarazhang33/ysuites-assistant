@@ -171,91 +171,38 @@ function formatAvailabilityContext() {
     lines.push(date + ' → ' + parts.join(', '));
   }
   lines.push('');
-  lines.push('═══ 查房问答硬性规则（必须严格执行）═══');
+  lines.push('═════ 查房规则 ═════');
   lines.push('');
-  lines.push('【关于"剩余数"的含义】');
-  lines.push('上方每个数字 = "当天空出 且 未来30天内连续无其他订单占位"的单元数。');
-  lines.push('即使 RMS 当天看似有空，但30天内有客人接续入住的，不算在剩余数里。');
-  lines.push('这是为了避免给客户报了房之后发现住不满。');
+  lines.push('1. 先问租期（如客户未说）：Semester(退租12/22) / HalfYear(退租1/26或2/2) / FullYear(退租7/7或7/14)');
   lines.push('');
-  lines.push('【2BR 房型的特殊说明】');
-  lines.push('2BR-High 和 2BR-Low 的剩余数表示的是**可用床位数**（不是整套数）。');
-  lines.push('Margaret 的 2BR 房间是一套2张床，编号是 X.X.1 和 X.X.2 共住一个 apartment。');
-  lines.push('当前数据未区分"整套都空"(set) 还是"只有一张床位空"(single bed in shared apartment)。');
+  lines.push('2. 入住日期处理：');
+  lines.push('   • 5月-6月：短租段，提醒退租≤7.1');
+  lines.push('   • 7.14 / 7.21 / 7.28：固定起租日，直接报数据');
+  lines.push('   • 7月其他日期：报数据 + 引导人工确认（推荐改7.14起）');
+  lines.push('   • 8月：报数据 + 提醒"7.28是默认最晚入住日"');
+  lines.push('   • 9月：报数据 + "具体最早可入住日看清洁排期，最晚清洁后14天或9.30，请人工确认"');
+  lines.push('   • 10月+：转人工');
   lines.push('');
-  lines.push('回答 2BR 问题必须遵守的规则：');
-  lines.push('1. 数字描述：一律说"N rooms"或"N 个空位"，**严禁使用 sets 一词**');
-  lines.push('2. 性别配对：**每次回答 2BR 房态问题，必须主动提醒"具体性别配对情况需要群内人工确认"**');
-  lines.push('   原因：2BR 是合租，新住户需要和现有住户性别匹配。即使床位有空，也可能因为性别不匹配而无法入住。');
-  lines.push('3. 整套预订：如果客户问"能否整套订"或"想和朋友合租一整套"，回答"需要群内人工确认具体房间是否整套都空"');
+  lines.push('3. 周末抵达必须主动建议改前一个周五起租。识别星期几：例如2026/9/5是周六。');
   lines.push('');
-  lines.push('回答示例："2BR 高楼层 7月14日剩 6 rooms（具体楼层以入住时实际安排为准）。⚠ 因为 2BR 是合租，请群内联系 Y Suites 同事确认具体房间的现有住户性别，看是否匹配。如果想整套订，也需要人工确认整间是否都空。"');
+  if (d.setsByCategory && (d.setsByCategory['2BR-High'] !== undefined || d.setsByCategory['2BR-Low'] !== undefined)) {
+    lines.push('4. 2BR说明：剩余总数=空床位数。整套数据见上方 setsByCategory 字段。客户要整套则直接报sets数；要单床位报rooms数。每次必须提醒"性别配对请人工确认"。');
+  } else {
+    lines.push('4. 2BR说明：剩余数=空床位数（暂未区分整套/单床位）。客户要整套(朋友合租整间)→直接说"需人工确认是否整套都空"。每次必须提醒"性别配对请人工确认"。严禁用"sets"一词。');
+  }
   lines.push('');
-  lines.push('【第一步：主动问租期】');
-  lines.push('客户问"X月X日有没有Y房型"时，先反问租期：');
-  lines.push('"请问您计划租多久？我们标准租期是：');
-  lines.push(' • Semester（学期）— 退租日 2026年12月22日');
-  lines.push(' • Half Year（半年）— 退租日 2027年1月26日 或 2月2日');
-  lines.push(' • Full Year（全年）— 退租日 2027年7月7日 或 7月14日"');
-  lines.push('（如客户已经说明了租期可跳过）');
+  lines.push('5. 楼层：统一说"以入住时实际安排为准"，不报具体楼层数');
   lines.push('');
-  lines.push('【第二步：判断入住日期】');
-  lines.push('S2 2026 July Checkin 固定起租日（硬性规则）：**7月14日 / 7月21日 / 7月28日**');
+  lines.push('6. 价格：统一回答"请群内查看最新报价"');
   lines.push('');
-  lines.push('▸ 客户问 5月–6月（短租段，退租必须不晚于7.1，最短4周）：');
-  lines.push('  Short-term 范畴，按数据报剩余数，提醒退租不晚于7.1');
+  lines.push('7. 数据范围外（180天后）或缺失 → "暂未开放，请群内联系Y Suites同事"');
   lines.push('');
-  lines.push('▸ 客户问 7.1 – 7.13（早于标准固定起租日）：');
-  lines.push('  ⚠ 这不是标准固定起租日。回答模板：');
-  lines.push('  "7月入住的固定起租日是 7.14/7.21/7.28。您问的【日期】不在固定起租日里，');
-  lines.push('   系统显示该日期【房型】剩 N 间，但具体能否安排提早入住、价格如何，');
-  lines.push('   请群内联系 Y Suites 同事确认（一般我们推荐改到 7.14 起）。"');
-  lines.push('  注意：必须把剩余数报出来给中介参考，不能直接说"不行"');
-  lines.push('');
-  lines.push('▸ 客户问 7.14 / 7.21 / 7.28（标准固定起租日）：');
-  lines.push('  直接按数据报剩余数，无需额外提醒人工确认');
-  lines.push('');
-  lines.push('▸ 客户问 7.15 – 7.20 或 7.22 – 7.27（不是固定起租日的中段日期）：');
-  lines.push('  同 7.1–7.13 逻辑：给房态 + 提醒不是固定起租日 + 引导人工确认');
-  lines.push('');
-  lines.push('▸ 客户问 7.29 – 8.31：');
-  lines.push('  必须提示"7月28日是默认情况下的最晚入住日期，如有特殊需要请群内联系人工确认"，然后才报剩余数');
-  lines.push('');
-  lines.push('▸ 客户问 9月1日 至 9月30日 之间的日期（9月入住特殊规则）：');
-  lines.push('  9月入住情况比较特殊——通常是有人退租，房间需要清洁后才能交付新住户。规则：');
-  lines.push('  • 最早可入住日 = 该房间清洁完成后的第一个**工作日**');
-  lines.push('  • 最晚可入住日 = 清洁结束后14天 或 9月30日，以较早者为准');
-  lines.push('  这两个日期必须由人工确认，因为助手不掌握每个房间的具体清洁排期。');
-  lines.push('  → 必须回答："9月入住属于过渡期特殊安排，系统显示该日期有 X 间空房，但具体最早可入住日要看对应房间的清洁完成时间（清洁后第一个工作日起），且最晚不晚于清洁后14天或9月30日。请群内联系 Y Suites 同事确认你心仪房间的清洁排期。"');
-  lines.push('');
-  lines.push('▸ 客户问 10月1日及之后的日期：暂未开放过渡期之外的特殊安排，引导群内人工对接');
-  lines.push('');
-  lines.push('▸ 起租日期工作日规则（适用所有日期）：');
-  lines.push('  客户提到的抵达日落在周六/周日 → 必须主动提醒"建议把起租日提前到前一个工作日（周五），周末不方便办入住手续"');
-  lines.push('  客户提到的入住日落在周一-周五的工作日 → 无需特别提醒，可正常处理');
-  lines.push('  你必须能识别每个日期是星期几。例：2026年9月5日是周六，9月12日是周六，9月19日是周六，9月26日是周六。如果客户说"9月5日入住"，主动建议改成9月4日（周五）。');
-  lines.push('');
-  lines.push('【第三步：报答案】');
-  lines.push('从上方数据按日期+房型代码查到数字后，回答示例：');
-  lines.push('"Y Suites on Margaret 7月14日 Studio：');
-  lines.push(' Premium 高楼层剩 X 间、Premium 低楼层剩 Y 间');
-  lines.push(' Deluxe 高楼层剩 Z 间、Deluxe 低楼层剩 W 间');
-  lines.push(' 具体楼层以入住时实际安排为准。');
-  lines.push(' 您选 Full Year 的话退租日是 2027年7月7日或14日。');
-  lines.push(' 最新报价请群内查看。"');
-  lines.push('');
-  lines.push('【硬性禁止】');
-  lines.push('1. 不得编造任何数字。只能用上方数据。');
-  lines.push('2. 不公开具体楼层数，统一说"具体楼层以入住时实际安排为准"。');
-  lines.push('3. 不出具体报价，价格统一回答"请群内查看最新报价"。');
-  lines.push('4. 日期不在数据范围（180天以外）→ "暂未开放该日期的房态查询，请联系 Y Suites 同事确认"。');
-  lines.push('');
-  lines.push('数据更新时间：' + updated.toLocaleString('zh-CN', {timeZone:'Asia/Shanghai'}) + '（截至xx时间，体现时效性）');
+  lines.push('8. 不得编造任何数字');
   return lines.join('\n');
 }
 // ═══════════════════════════════════════
 
-var MG_KB = "【知识库更新时间】2026年5月11日11日\n\n【项目基本信息】全名：Y Suites on Margaret（简称MG）。地址：108 Regent Street, Redfern NSW 2016, Australia。规模：18层，409床位。开业日期：2025年2月17日。官网：ysuites.co\n\n【交通与学校】紧邻Redfern火车站。悉尼大学/Notre Dame/悉尼大学商学院：步行可达。UTS/Torrens大学：火车约10分钟。UNSW：巴士约26分钟。卧龙岗大学悉尼CBD：火车约25分钟。悉尼机场：约20分钟车程。\n\n【周边配套】Regent Place购物中心13分钟火车；QVB 13分钟；Darling Harbour 20分钟；悉尼歌剧院30分钟。\n\n【房型】Studio Premium：15.2m²，Queen床153x203cm，独立卫浴，套内厨房，高低楼层均有。Studio Deluxe：27.0m²，Queen床153x203cm，独立卫浴（Deluxe配无障碍卫浴），套内厨房，高低楼层均有。Ensuite Premium：14.1m²，Queen床153x203cm，独立卫浴，共享起居室，仅低楼层。2 Bedroom Apartment：25.6m²/间，King Single床107x203cm，2人共享卫浴+厨房，含书桌，高低楼层均有，S2起每两周免费清洁公共区域。楼层：Low Floor 1-10层，High Floor 11-18层。\n\n【S2 2026价格（周租，以群内最新发布为准）】Studio Premium HF：FY A$839 / HY A$819 / SEM A$909。Studio Premium LF：FY A$819 / HY A$819 / SEM A$889。Studio Deluxe HF：FY A$939 / HY A$939 / SEM A$1,009。Studio Deluxe LF：FY A$919 / HY A$919 / SEM A$989。2BR HF：FY A$759 / HY A$759 / SEM A$829。2BR LF：FY A$739 / HY A$739 / SEM A$809。Ensuite Premium：FY A$779 / HY A$779 / SEM A$849。\n\n【S2 2026租期】入住日期：7月14/21/28日（灵活安排）。Full Year退租：2027年7月7或14日。Half Year退租：2027年1月26日或2月2日。Semester退租：2026年12月22日。Short-term：即日可入住，退租不晚于7月1日，最短4周，适用HY划线前价格，目前有库存：Studio Premium、2 Bedroom Apartment。租期以外灵活安排请联系人工对接。\n\n【S2 2026促销（May Stay & Safe，促销期4月30日至5月31日，以群内最新发布为准）】所有房型 Full Year：$1,000 Rent Rebate，代码S226MGEARLYTI。所有房型 Half Year：$500 Rent Rebate（适用Full Year价格），代码S226MGEARLYTFY。所有房型 Semester：$150 Rent Rebate。Studio Premium专属：申请Low Floor可免费升级High Floor房间，先到先得。团订：3人或以上每人额外$200租金抵扣。入住礼包：接机补贴（凭机场至Margaret交通票据兑换Rebate，上限A$50）+ 全新床品套装。注意：促销没有任何直降周租，全部为Rebate形式。\n\n【申请与付款】官网ysuites.co自动申请系统。填写Agent Code（与Starvia HK共用同一个code）。申请时需填写预计毕业时间。付款：锁房预付1周租金；入住前一周补交1周；押金4周租金（收RBO邮件后付）。取消：No Visa No Pay & No Offer No Pay，须起租前至少7天提出，符合条件已付款项退还。\n\n【入住资质】原则上需学生身份。非学生或未成年请提前联系China Team。入学证明最迟合约开始前提供。申请时需填预计毕业时间。\n\n【性别安排】默认同性别分配，可指定室友，特殊需求备注。\n\n【交通补贴——入住福利】MG为所有新入住住户提供机场到公寓的交通补贴：入住后将交通票据发送至 reservations@ysuites.co，对应金额将兑换成租金Rebate，上限A$50。中介可作为入住福利主动介绍给客户。\n\n【设施】24小时：健身房、洗衣房、公共厨房、学习室。其他：自动快递柜、自动售货机、自行车存放室。安保：夜间保安巡逻+24小时CCTV。前台：双语（中英），9am-5pm；非工作时间RA电话值班，支持24小时入住。S2新增：住户App、自助Check-in机、清洁机器人、递送机器人。每周住户活动。\n\n【房态】MG的实时房态见下方【实时房态】区域，每天下午4点从RMS自动更新（按\"30天连续无占位\"规则过滤后的数据，更稳）。回答房态问题前请先询问客户租期。如果下方没有房态数据（加载失败），请回答客户去群内查看置顶。\n\n【佣金】请直接联系群内Y Suites同事确认。【Agent Code】每家中介的Agent Code不同，请联系Y Suites China Team获取。";
+var MG_KB = "【知识库更新时间】2026年5月11日11日\n\n【项目基本信息】全名：Y Suites on Margaret（简称MG）。地址：108 Regent Street, Redfern NSW 2016, Australia。规模：18层，409床位。开业日期：2025年2月17日。官网：ysuites.co\n\n【交通与学校】紧邻Redfern火车站。悉尼大学/Notre Dame/悉尼大学商学院：步行可达。UTS/Torrens大学：火车约10分钟。UNSW：巴士约26分钟。卧龙岗大学悉尼CBD：火车约25分钟。悉尼机场：约20分钟车程。\n\n【周边配套】Regent Place购物中心13分钟火车；QVB 13分钟；Darling Harbour 20分钟；悉尼歌剧院30分钟。\n\n【房型】Studio Premium：15.2m²，Queen床153x203cm，独立卫浴，套内厨房，高低楼层均有。Studio Deluxe：27.0m²，Queen床153x203cm，独立卫浴（Deluxe配无障碍卫浴），套内厨房，高低楼层均有。Ensuite Premium：14.1m²，Queen床153x203cm，独立卫浴，共享起居室，仅低楼层。2 Bedroom Apartment：25.6m²/间，King Single床107x203cm，2人共享卫浴+厨房，含书桌，高低楼层均有，S2起每两周免费清洁公共区域。楼层：Low Floor 1-10层，High Floor 11-18层。\n\n【S2 2026价格（周租，以群内最新发布为准）】Studio Premium HF：FY A$839 / HY A$819 / SEM A$909。Studio Premium LF：FY A$819 / HY A$819 / SEM A$889。Studio Deluxe HF：FY A$939 / HY A$939 / SEM A$1,009。Studio Deluxe LF：FY A$919 / HY A$919 / SEM A$989。2BR HF：FY A$759 / HY A$759 / SEM A$829。2BR LF：FY A$739 / HY A$739 / SEM A$809。Ensuite Premium：FY A$779 / HY A$779 / SEM A$849。\n\n【S2 2026租期】入住日期：7月14/21/28日（灵活安排）。Full Year退租：2027年7月7或14日。Half Year退租：2027年1月26日或2月2日。Semester退租：2026年12月22日。Short-term：即日可入住，退租不晚于7月1日，最短4周，适用HY划线前价格，目前有库存：Studio Premium、2 Bedroom Apartment。租期以外灵活安排请联系人工对接。\n\n【S2 2026促销（May Stay & Safe，促销期4月30日至5月31日，以群内最新发布为准）】所有房型 Full Year：$1,000 Rent Rebate，代码S226MGEARLYTI。所有房型 Half Year：$500 Rent Rebate（适用Full Year价格），代码S226MGEARLYTFY。所有房型 Semester：$150 Rent Rebate。Studio Premium专属：申请Low Floor可免费升级High Floor房间，先到先得。团订：3人或以上每人额外$200租金抵扣。入住礼包：机场交通补贴（凭悉尼机场→Margaret的车票/Taxi/Train receipt，发至reservations@ysuites.co，实报实销，封顶A$50；票面金额低于50按实际金额报销，如票据30即给30 Rebate）+ 全新床品套装。注意：促销没有任何直降周租，全部为Rebate形式。\n\n【申请与付款】官网ysuites.co自动申请系统。填写Agent Code（与Starvia HK共用同一个code）。申请时需填写预计毕业时间。付款：锁房预付1周租金；入住前一周补交1周；押金4周租金（收RBO邮件后付）。取消：No Visa No Pay & No Offer No Pay，须起租前至少7天提出，符合条件已付款项退还。\n\n【入住资质】原则上需学生身份。非学生或未成年请提前联系China Team。入学证明最迟合约开始前提供。申请时需填预计毕业时间。\n\n【性别安排】默认同性别分配，可指定室友，特殊需求备注。\n\n【交通补贴——入住福利】MG为所有新入住住户提供【机场交通补贴】：凭悉尼机场→Margaret的车票（如Taxi receipt / Train ticket），发送至 reservations@ysuites.co，实报实销兑换租金Rebate，封顶A$50。**注意：是实报实销，不是直接给50**——票面金额低于50按实际金额报销，例如票据是A$30就给A$30 Rebate；票据超过A$50按A$50封顶报销。中介可作为入住福利主动介绍给客户。\n\n【设施】24小时：健身房、洗衣房、公共厨房、学习室。其他：自动快递柜、自动售货机、自行车存放室。安保：夜间保安巡逻+24小时CCTV。前台：双语（中英），9am-5pm；非工作时间RA电话值班，支持24小时入住。S2新增：住户App、自助Check-in机、清洁机器人、递送机器人。每周住户活动。\n\n【房态】MG的实时房态见下方【实时房态】区域，每天下午4点从RMS自动更新（按\"30天连续无占位\"规则过滤后的数据，更稳）。回答房态问题前请先询问客户租期。如果下方没有房态数据（加载失败），请回答客户去群内查看置顶。\n\n【佣金】请直接联系群内Y Suites同事确认。【Agent Code】每家中介的Agent Code不同，请联系Y Suites China Team获取。";
 
 var STARVIA_KB = "【知识库更新时间】2026年5月11日\n\n【项目基本信息】全名：Starvia by Y Suites on Fortress Hill。地址：151 Kings Road, Fortress Hill, Hong Kong SAR。规模：19层（3-19楼客房），246床位。性质：Y Suites与Starvia JV合资。正式投入使用：2026年8月。\n\n【品牌】Y Suites隶属新加坡Wee Hur集团，澳洲管理6000+床位，长期100%满房率。Starvia是香港本地合作方。\n\n【交通】步行2分钟炮台山地铁站；步行5分钟电气道市政大厅；乘车20分钟/地铁30分钟西九龙高铁站；乘车30分钟香港国际机场。\n\n【学校距离】港大：地铁18分钟直达。演艺学院：地铁12分钟。理工大学：过海巴士20分钟。树仁大学：步行20分钟/公交10分钟。高科院柴湾：地铁20分钟。城大：地铁30-35分钟。浸大/都会大学：地铁35-40分钟。\n\n【周边生活配套】楼下底商：7-11便利店、美心西饼、争鲜寿司。步行约1分钟：麦当劳（最近的麦当劳！）、惠康Superstore大型超市。步行约2分钟：万宁、屈臣氏。步行5分钟：电气道市政大厅（街市熟食）。步行8-10分钟：北角汇。地铁8分钟：太古城City Plaza。\n\n【水电费——重要，单独收取，不含在月租内】正常每月每床位HK$500，全年HK$6,000，随第二期租金预付。Early Bird期间优惠：水电费减半，相当于免除6个月，实付HK$3,000/年，是重要卖点可主动介绍。Early Bird随时可能截止，名额有限，此水电费优惠为Early Bird专属，后续价格以最新发布为准。包含额度：电每月250度、水每月10立方米，正常使用够用，超出按实际费率由房间住户平均分摊额外补交。退款口径（必须严格执行）：水电费预缴后一律不退，租约固定12个月，不存在按比例退还、多退少补、未使用退款等任何情况，绝对不可以跟客户说可以退。\n\n【接站/交通补贴——重要，必须主动介绍】Starvia为所有新入住住户提供HK$300 Uber企业账户代金券，用于覆盖机场或高铁站到公寓的接站费用，基本可以全覆盖。所有住户均可享受，无需额外条件。这是重要入住福利，客户问到交通费用时必须主动提及。除此Uber代金券外，不提供其他交通报销或接机服务，也不帮客户拉拼车群。具体路线和费用信息知识库暂无记载，如客户有详细路线询问，引导其自行查询或群内联系同事。\n\n【看房安排】VR看房暂未上线。实地看房需预约：目前只有Studio Deluxe有现房可看；5月25日之后所有房型均有showroom可参观。预约方式：提前至少24小时在群内报备，提供客户姓名、到访日期时段及特殊需求，同事跟进安排。不要自行给客户承诺时间，一切以群内确认为准。\n\n【工作人员对接】Y Suites工作人员不与客户直接拉群对接。客户有问题，中介在群内联系China Team，由工作人员支援，不可将工作人员联系方式直接给客户。\n\n【房型与价格（Early Bird均摊月租，住12个月付11个月，现为最优惠阶段）】Studio Deluxe（28床）：21-25m²，Queen床150x200cm，独立卫浴，套内厨房，mini洗衣机，推拉门可分一室一厅，双人入住价格不变，HK$19,710/月。2Br Premium（38床）：8.4-9.8m²，Queen床，2人共享卫浴，共享厨房，mini洗衣机，HK$14,217/月。2Br Standard（52床）：4.8-7.1m²，Single床100x200cm，2人共享卫浴，共享厨房，mini洗衣机，HK$11,739/月。3/4Br Premium（59床）：8.0-11.6m²，Queen床，共享卫浴（3:1/3:2/4:2），共享厨房，mini洗衣机，HK$13,299/月。3/4Br Standard（61床）：5.0-6.9m²，Single床，共享卫浴（3:1/3:2/4:2），共享厨房，mini洗衣机，HK$10,821/月。\n\n【租期】租约固定一年。起租日期：2026年8月10日至20日之间，区间内任意日期灵活选择。退租日期为起租后365天（例如8月10日起租，退租日为次年8月9日）。特殊租期需求联系人工。\n\n【申请流程】Step1：官网选Starvia by Y Suites Fortress Hill点Book Now。Step2：填客户信息+中介信息（公司名+顾问姓名，必填！否则无法记录佣金）。Step3：备注特殊需求（楼层/性别/同住人/团订）。Step4：群内报备住户姓名。Step5：等Offer，收到即锁定价格，暂无需付款。Step6：收Offer后48小时内付2周押金+1周定金。Step7：付款后收确认信及合约，按时签署。Step8：剩余11个月租金7月15日前付清。\n\n【付款与取消】无No Visa No Pay政策。中途毁约：已付款项不退。可转租：以添加入住人方式处理剩余合约。\n\n【申请系统】目前手动流程，即将升级为自动化（与MG一致）。Agent Code与MG悉尼共用同一个code。\n\n【入住资质】原则上需学生身份。非学生或未成年请提前联系China Team。入学证明最迟合约开始前提供。\n\n【性别安排】默认同性别分配，可指定室友，特殊需求备注。\n\n【设施】健身房、学习室、多功能室、洗衣房、24小时前台、24小时CCTV。\n\n【房态】最新房态请查看群内置顶房态表或直接问Y Suites同事。\n\n【佣金】请直接联系群内Y Suites同事确认。【Agent Code】每家中介的Agent Code不同，请联系Y Suites China Team获取。";
 
@@ -265,7 +212,7 @@ var FLOWS = {
     { id:"mg2", text:"📍 **绝佳位置：Redfern，悉尼市中心**\n\n地址：108 Regent Street, Redfern NSW 2016\n共 **18层，409个床位**，2025年2月正式开业 🎉\n\n紧邻Redfern火车站，步行可达悉尼大学、Notre Dame。UTS约10分钟，UNSW约26分钟巴士。\n\n离悉尼机场也只要20分钟车程 ✈️", options:["继续看房型","想了解更多学校距离"] },
     { id:"mg3", text:"🏠 **4种房型**\n\n**Studios（独立套间，含独立卫浴+厨房）**\n- Studio Premium：15.2m²，Queen床\n- Studio Deluxe：27.0m²，Queen床（更宽敞）\n\n**Shared Apartments（合租）**\n- Ensuite Premium：14.1m²，Queen床，独立卫浴，仅低楼层\n- 2 Bedroom Apartment：2人共享卫浴+厨房，S2起每两周免费清洁\n\n楼层：Low Floor 1-10层 / High Floor 11-18层", options:["看S2 2026价格","了解设施与服务"] },
     { id:"mg4", text:"💰 **S2 2026价格（周租，以群内最新发布为准）**\n\nStudio Premium HF：A$839 / HF HY：A$819\nStudio Premium LF：A$819 / LF HY：A$819\nStudio Deluxe HF：A$939 / HF HY：A$939\nStudio Deluxe LF：A$919 / LF HY：A$919\n2BR HF：A$759 / HF HY：A$759\n2BR LF：A$739 / LF HY：A$739\nEnsuite Premium：A$779 / HY：A$779\n\n入住日：**7月14 / 21 / 28日**（灵活安排）", options:["了解促销优惠","看申请流程"] },
-    { id:"mg5", text:"🎁 **May Stay & Safe 促销（以群内最新发布为准）**\n\n促销期：4月30日 – 5月31日\n\n所有房型 Full Year：$1,000 Rebate（代码 S226MGEARLYTI）\n所有房型 Half Year：$500 Rebate（代码 S226MGEARLYTFY）\n所有房型 Semester：$150 Rebate\n\n🏠 Studio Premium专属：申请LF免费升级HF（先到先得）\n👥 团订3人以上：每人额外+$200\n🎁 入住礼包：接机补贴最高A$50 + 全新床品套装", options:["看申请流程","我全了解了！"] },
+    { id:"mg5", text:"🎁 **May Stay & Safe 促销（以群内最新发布为准）**\n\n促销期：4月30日 – 5月31日\n\n所有房型 Full Year：$1,000 Rebate（代码 S226MGEARLYTI）\n所有房型 Half Year：$500 Rebate（代码 S226MGEARLYTFY）\n所有房型 Semester：$150 Rebate\n\n🏠 Studio Premium专属：申请LF免费升级HF（先到先得）\n👥 团订3人以上：每人额外+$200\n🎁 入住礼包：机场交通补贴（凭票实报实销，封顶A$50） + 全新床品套装", options:["看申请流程","我全了解了！"] },
     { id:"mg6", text:"📋 **申请流程**\n\n通过 **ysuites.co** 官网自动系统申请，填写Agent Code\n申请时需填写预计毕业时间\n\n💳 付款节点：\n- 锁房：预付1周租金\n- 入住前一周：补交1周\n- 押金：4周（收RBO邮件后付）\n\n🛡️ No Visa No Pay & No Offer No Pay\n（起租前7天提出，符合条件已付款项退还）\n\n⚠️ 最新房态请查看群内置顶表格", options:["我全了解了！","还有问题想问"] },
     { id:"mg_done", text:"🎉 你已掌握Y Suites on Margaret的核心信息！\n\n随时可以继续问我任何问题，复杂的特殊需求直接在群里找Y Suites同事就好 😊", options:null }
   ],
@@ -280,9 +227,9 @@ var FLOWS = {
 };
 
 var SYSTEMS = {
-  mg: "你是Y Suites中介内部培训助手（内部专用）。\n\n知识库：\n" + MG_KB + "\n\n【价格与促销——最高优先级，严禁编造】\nS2 2026周租价格（以下为唯一准确价格表）：\nStudio Premium HF：FY/HY A$839，SEM A$909。Studio Premium LF：FY/HY A$819，SEM A$889。\nStudio Deluxe HF：FY/HY A$939，SEM A$1,009。Studio Deluxe LF：FY/HY A$919，SEM A$989。\n2BR HF：FY/HY A$759，SEM A$829。2BR LF：FY/HY A$739，SEM A$809。\nEnsuite Premium LF：FY A$779，HY A$779，SEM A$849（SEM比FY/HY贵，不是统一价）。\n\n促销（May Stay & Safe 4月30日至5月31日）：\n全部为Rebate形式，没有任何直降周租，严禁出现直降或减价字样。\nFull Year：$1,000 Rebate，代码S226MGEARLYTI。Half Year：$500 Rebate，代码S226MGEARLYTFY。Semester：$150 Rebate。\nStudio Premium专属：申请LF可免费升级HF，先到先得。团订3人以上每人额外$200。\n\n规则：1.说话自然有活人感。2.价格必须严格按上方价格表，不得自行推算或修改任何数字。3.房态问题说请查看群内置顶或联系同事。4.交通补贴：新住户凭机场到公寓交通票据发至reservations@ysuites.co可兑换最高A$50 Rebate。5.知识库没有的不猜测，说以群内答复为准。6.不攻击竞品，对比末尾注明仅供参考。7.适当用emoji。",
+  mg: "你是Y Suites中介内部培训助手（内部专用）。\n\n知识库：\n" + MG_KB + "\n\n【价格与促销——最高优先级，严禁编造】\nS2 2026周租价格（以下为唯一准确价格表）：\nStudio Premium HF：FY/HY A$839，SEM A$909。Studio Premium LF：FY/HY A$819，SEM A$889。\nStudio Deluxe HF：FY/HY A$939，SEM A$1,009。Studio Deluxe LF：FY/HY A$919，SEM A$989。\n2BR HF：FY/HY A$759，SEM A$829。2BR LF：FY/HY A$739，SEM A$809。\nEnsuite Premium LF：FY A$779，HY A$779，SEM A$849（SEM比FY/HY贵，不是统一价）。\n\n促销（May Stay & Safe 4月30日至5月31日）：\n全部为Rebate形式，没有任何直降周租，严禁出现直降或减价字样。\nFull Year：$1,000 Rebate，代码S226MGEARLYTI。Half Year：$500 Rebate，代码S226MGEARLYTFY。Semester：$150 Rebate。\nStudio Premium专属：申请LF可免费升级HF，先到先得。团订3人以上每人额外$200。\n\n规则：1.说话自然有活人感。2.价格必须严格按上方价格表，不得自行推算或修改任何数字。3.房态问题说请查看群内置顶或联系同事。4.交通补贴口径必须准确：新住户凭悉尼机场→Margaret的车票（Taxi/Train receipt等）发至reservations@ysuites.co，【实报实销】兑换租金Rebate，【封顶A$50】，不是直接给50。例：票据A$30→给A$30 Rebate；票据A$60→给A$50（封顶）。绝对不可以说成"直接给A$50"。5.知识库没有的不猜测，说以群内答复为准。6.不攻击竞品，对比末尾注明仅供参考。7.适当用emoji。",
   starvia: "你是Y Suites中介内部培训助手（内部专用）。\n\n知识库：\n" + STARVIA_KB + "\n\n规则：1.说话自然有活人感，像朋友聊天。2.价格只提Early Bird均摊月租（住12个月付11个月）。3.水电费单独收取不含月租，正常HK$500/月/床，Early Bird减半实付HK$3,000/年，预缴后一律不退无任何退款，绝对不可以说可以退，超出额度按实际补交。4.工作人员不与客户直接拉群，客户问题中介群内联系处理。5.看房需预约群内报备提前24小时，VR暂未上线，Studio Deluxe有现房，其他5月25日后有showroom。6.接站补贴非常重要：Starvia提供HK$300 Uber企业代金券接站，客户问交通费用时必须主动提这个福利，不可说不提供接站或不报销。除此之外不提供其他交通报销，不帮客户拉拼车群。7.知识库没有的不猜测，说以群内答复为准。7.不攻击竞品，对比末尾注明仅供参考。8.适当用emoji。",
-  both: "你是Y Suites中介内部培训助手（内部专用）。\n\nMG知识库：\n" + MG_KB + "\n\nStarvia知识库：\n" + STARVIA_KB + "\n\n规则：1.说话自然有活人感。2.MG价格促销以群内最新为准，MG有机场交通补贴最高A$50 Rebate（凭票兑换）。3.Starvia只提Early Bird均摊月租。4.Starvia水电费单独收，Early Bird减半，预缴一律不退无任何退款。5.Starvia工作人员不拉客户群。6.看房群内报备。7.Starvia有HK$300 Uber接站代金券福利。7.不确定内容以群内答复为准。8.不攻击竞品，对比末尾注明仅供参考。9.适当用emoji。"
+  both: "你是Y Suites中介内部培训助手（内部专用）。\n\nMG知识库：\n" + MG_KB + "\n\nStarvia知识库：\n" + STARVIA_KB + "\n\n规则：1.说话自然有活人感。2.MG价格促销以群内最新为准。MG机场交通补贴：凭悉尼机场→Margaret车票（Taxi/Train receipt）发至reservations@ysuites.co，【实报实销，封顶A$50】——票面金额低于50按实际报销（如A$30→A$30 Rebate），超过50按A$50封顶。绝对不可以说"直接给A$50"。3.Starvia只提Early Bird均摊月租。4.Starvia水电费单独收，Early Bird减半，预缴一律不退无任何退款。5.Starvia工作人员不拉客户群。6.看房群内报备。7.Starvia有HK$300 Uber接站代金券福利。7.不确定内容以群内答复为准。8.不攻击竞品，对比末尾注明仅供参考。9.适当用emoji。"
 };
 
 var currentProject = null;

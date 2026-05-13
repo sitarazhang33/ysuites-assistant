@@ -1,39 +1,33 @@
 /**
- * Extract availability data from RMS Cloud Booking Chart.
+ * Extract availability from RMS Cloud Booking Chart.
+ * Rules:
+ *  - Base: unit "available" on D = free on D AND no reservation in [D, D+30 days)
+ *  - Sept (9.1-9.30) extra: last reservation end before D must be > 2026-08-15
+ *    (long-vacant units are held back for short-term customers)
+ *  - 2BR sets: if scheduler DOM is available, parse unit names like "08.14.1" /
+ *    "08.14.2" and detect when both beds in same room are free → count as 1 set
  *
- * AVAILABILITY RULE: A unit counts as "available" on date D only if it is
- * free on D AND has no reservation overlapping the next 30 days.
- *
- * HOW TO RUN:
- *   1. Open https://app12.rmscloud.com/ and log in
- *   2. (Optional) navigate to Booking Chart so session is warm
- *   3. Open DevTools Console (F12), paste this entire script
- *   4. The script will fetch data and stash JSON on window.__availJson
- *
- * Configured for: Y Suites on Margaret (Property ID 9)
+ * HOW TO RUN: paste into RMS Cloud Booking Chart DevTools Console.
+ * Configured for Y Suites on Margaret (Property ID 9).
  */
 (async () => {
-  const PROPERTY_ID = 9;
-  const PROPERTY_CODE = 'YSMG';
-  const PROPERTY_NAME = 'Y Suites on Margaret';
-  const DAYS_AHEAD = 180;
-  const LOOKAHEAD_DAYS = 30; // 30-day continuous availability rule
+  const PROPERTY_ID = 9, DAYS_AHEAD = 180, LOOKAHEAD_DAYS = 30;
+  const FRESH_VACATE_CUTOFF = new Date('2026-08-15T00:00:00').getTime();
+  const SEPT_START = new Date('2026-09-01T00:00:00').getTime();
+  const SEPT_END = new Date('2026-09-30T23:59:59').getTime();
   const TODAY = new Date(); TODAY.setHours(0,0,0,0);
 
   const simplify = (name) => {
     let s = name.replace(/\s*YSMG\s*$/i, '').trim();
-    s = s.replace(/\s*\(High Floor\)/i, '-High').replace(/\s*\(Low Floor\)/i, '-Low');
-    return s.trim();
+    return s.replace(/\s*\(High Floor\)/i, '-High').replace(/\s*\(Low Floor\)/i, '-Low').trim();
   };
 
-  // 1. Categories
   const opts = await fetch('/api/BookingChart/InitializeOptions', {credentials: 'include'}).then(r => r.json());
   const myCats = opts.Categories.filter(c => c.PropertyId === PROPERTY_ID && !c.Inactive);
   const catMap = {};
   myCats.forEach(c => { catMap[c.CatId] = simplify(c.CategoryName); });
   const myCatIds = new Set(Object.keys(catMap).map(Number));
 
-  // 2. All reservations (use lastModifiedDate=2020 to get full dataset, not delta)
   const fromStr = encodeURIComponent(`${TODAY.getDate()}/${TODAY.getMonth()+1}/${TODAY.getFullYear()}`);
   const end = new Date(TODAY); end.setDate(end.getDate() + DAYS_AHEAD);
   const toStr = encodeURIComponent(`${end.getDate()}/${end.getMonth()+1}/${end.getFullYear()}`);
@@ -41,57 +35,116 @@
     method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}', credentials: 'include'
   }).then(r => r.json());
 
-  // 3. Active reservations (this property, non-cancelled)
   const ACTIVE = resp.Reservations.filter(r => myCatIds.has(r.OriginalCatId) && r.ResStatus !== 'Cancelled' && r.ResStatus !== 'Quote' && !r.IsEvent)
     .map(r => ({catId: r.OriginalCatId, areaId: r.OriginalAreaId, s: new Date(r.start_date).getTime(), e: new Date(r.end_date).getTime()}));
 
-  // 4. Total units per category (from all areas ever seen)
+  const unitRes = {};
+  for (const r of ACTIVE) { (unitRes[r.areaId] = unitRes[r.areaId] || []).push(r); }
+
   const areasByCat = {}; for (const cid of myCatIds) areasByCat[cid] = new Set();
   resp.Reservations.forEach(r => { if (myCatIds.has(r.OriginalCatId)) areasByCat[r.OriginalCatId].add(r.OriginalAreaId); });
   const totals = {}; for (const cid of myCatIds) totals[cid] = areasByCat[cid].size;
 
-  // 5. For each (date, category), count areas with NO reservation overlap in [date, date+30days)
-  const avail = {};
+  // Try to build areaId → unitName map from rendered Booking Chart DOM
+  // Unit name pattern: "AA.BB.1" or "AA.BB.2" for 2BR; "AA.BB" or similar for studios
+  const areaIdToUnitName = {};
+  document.querySelectorAll('[data-section-id]').forEach(el => {
+    const sid = parseInt(el.getAttribute('data-section-id'), 10);
+    if (isNaN(sid)) return;
+    const txt = (el.innerText || el.textContent || '').trim();
+    const m = txt.match(/^([\d.]+)\s/);
+    if (m) areaIdToUnitName[sid] = m[1];
+  });
+
+  // For 2BR categories, group areas by "AA.BB" room prefix
+  const TWO_BR_CATS = new Set();
+  for (const cid of myCatIds) if (catMap[cid].startsWith('2BR')) TWO_BR_CATS.add(cid);
+
+  const roomPairs = {};  // catId → {roomKey: [areaId1, areaId2]}
+  for (const cid of TWO_BR_CATS) {
+    roomPairs[cid] = {};
+    for (const aid of areasByCat[cid]) {
+      const name = areaIdToUnitName[aid];
+      if (!name) continue;
+      const parts = name.split('.');
+      if (parts.length < 3) continue;
+      const roomKey = parts.slice(0, -1).join('.');
+      (roomPairs[cid][roomKey] = roomPairs[cid][roomKey] || []).push(aid);
+    }
+  }
+  const hasUnitNames = Object.keys(areaIdToUnitName).length > 0;
+
+  function isFreshlyVacatedBy(areaId, dateMs) {
+    const list = unitRes[areaId] || [];
+    let latestEndBefore = null;
+    for (const r of list) {
+      if (r.e <= dateMs && (latestEndBefore === null || r.e > latestEndBefore)) latestEndBefore = r.e;
+    }
+    return latestEndBefore !== null && latestEndBefore > FRESH_VACATE_CUTOFF;
+  }
+
+  function isAreaFree(areaId, winStart, winEnd) {
+    for (const r of (unitRes[areaId] || [])) {
+      if (r.s < winEnd && r.e > winStart) return false;
+    }
+    return true;
+  }
+
+  const avail = {}, setsAvail = {};
   for (let i = 0; i < DAYS_AHEAD; i++) {
     const d = new Date(TODAY); d.setDate(d.getDate() + i);
     const ds = d.toISOString().slice(0,10);
-    const winStart = d.getTime();
-    const winEnd = winStart + LOOKAHEAD_DAYS * 86400000;
+    const winStart = d.getTime(), winEnd = winStart + LOOKAHEAD_DAYS * 86400000;
+    const isSept = winStart >= SEPT_START && winStart <= SEPT_END;
     const cats = {};
+    const sets = {};
     for (const cid of myCatIds) {
-      const occupied = new Set();
-      for (const r of ACTIVE) {
-        if (r.catId !== cid) continue;
-        if (r.s < winEnd && r.e > winStart) occupied.add(r.areaId);
+      let count = 0;
+      for (const aid of areasByCat[cid]) {
+        if (!isAreaFree(aid, winStart, winEnd)) continue;
+        if (isSept && !isFreshlyVacatedBy(aid, winStart)) continue;
+        count++;
       }
-      cats[catMap[cid]] = totals[cid] - occupied.size;
+      cats[catMap[cid]] = count;
+      // For 2BR, additionally compute sets (both .1 and .2 free)
+      if (TWO_BR_CATS.has(cid) && hasUnitNames) {
+        let setCount = 0;
+        for (const roomKey in roomPairs[cid]) {
+          const aids = roomPairs[cid][roomKey];
+          if (aids.length < 2) continue;
+          const allFree = aids.every(aid =>
+            isAreaFree(aid, winStart, winEnd) &&
+            (!isSept || isFreshlyVacatedBy(aid, winStart))
+          );
+          if (allFree) setCount++;
+        }
+        sets[catMap[cid]] = setCount;
+      }
     }
     avail[ds] = cats;
+    if (Object.keys(sets).length) setsAvail[ds] = sets;
   }
 
   const result = {
     lastUpdated: new Date().toISOString(),
-    propertyName: PROPERTY_NAME,
-    propertyCode: PROPERTY_CODE,
-    availabilityRule: '30day-continuous',
-    availabilityNote: '剩余数 = 在该日期当天空出，且未来30天内连续无其他订单占位的单元数',
+    propertyName: 'Y Suites on Margaret',
+    propertyCode: 'YSMG',
+    availabilityRule: '30day-continuous + Sep-only-recently-vacated (cutoff 2026-08-15)' + (hasUnitNames ? ' + 2BR-sets' : ''),
     categoryDisplayNames: {
-      "SP-High": "Studio Premium (高楼层)",
-      "SP-Low": "Studio Premium (低楼层)",
-      "SD-High": "Studio Deluxe (高楼层)",
-      "SD-Low": "Studio Deluxe (低楼层)",
+      "SP-High": "Studio Premium (高楼层)", "SP-Low": "Studio Premium (低楼层)",
+      "SD-High": "Studio Deluxe (高楼层)", "SD-Low": "Studio Deluxe (低楼层)",
       "ENP": "Ensuite Premium",
-      "2BR-High": "2 Bedroom Apartment (高楼层)",
-      "2BR-Low": "2 Bedroom Apartment (低楼层)"
+      "2BR-High": "2 Bedroom Apartment (高楼层)", "2BR-Low": "2 Bedroom Apartment (低楼层)"
     },
     totalsByCategory: Object.fromEntries(Object.entries(catMap).map(([cid, code]) => [code, totals[cid]])),
     availability: avail
   };
+  if (hasUnitNames) result.setsByDate = setsAvail;
 
   window.__availJson = JSON.stringify(result);
   console.log('=== AVAILABILITY JSON ===');
   console.log(window.__availJson);
   console.log('=== END ===');
-  console.log(`✓ Extracted ${Object.keys(avail).length} days, ${ACTIVE.length} active reservations (30-day rule)`);
+  console.log(`✓ ${Object.keys(avail).length} days, ${ACTIVE.length} active res, unit names: ${hasUnitNames ? 'YES (2BR sets computed)' : 'NO (no DOM data, sets skipped)'}`);
   return result;
 })();
